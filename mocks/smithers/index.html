@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Labor — Room Mic Array</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --accent: #ff5c3a;
+    --accent-glow: rgba(255, 92, 58, 0.25);
+    --text: #e8e6e1;
+    --dim: #5a5868;
+    --ring: #1e1e2a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  header {
+    width: 100%;
+    padding: 28px 32px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 480px;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .status-pill {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--dim);
+    background: var(--surface);
+    border: 1px solid var(--ring);
+    padding: 5px 12px;
+    border-radius: 20px;
+  }
+
+  .hero {
+    max-width: 480px;
+    width: 100%;
+    padding: 48px 32px 0;
+    text-align: center;
+  }
+
+  .pitch {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.8px;
+    margin-bottom: 10px;
+  }
+
+  .sub {
+    color: var(--dim);
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.5;
+  }
+
+  /* Room visualization */
+  .room-canvas {
+    position: relative;
+    width: 320px;
+    height: 320px;
+    margin: 40px auto 0;
+  }
+
+  .room-outline {
+    position: absolute;
+    inset: 20px;
+    border: 1.5px solid var(--ring);
+    border-radius: 12px;
+  }
+
+  .room-label {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: var(--bg);
+    padding: 0 8px;
+  }
+
+  .mic {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--ring);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 2;
+  }
+
+  .mic.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(255, 92, 58, 0.08);
+  }
+
+  .mic-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background 0.3s ease;
+  }
+
+  .mic.active .mic-icon {
+    background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .mic-ring {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+
+  .mic.active .mic-ring {
+    animation: ripple 2.5s ease-out infinite;
+    border-color: var(--accent);
+  }
+
+  .mic-id {
+    position: absolute;
+    top: -18px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .mic.active .mic-id { color: var(--accent); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+
+  @keyframes ripple {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+
+  /* Mic positions around the room */
+  .mic:nth-child(1) { top: 30px; left: 40px; }
+  .mic:nth-child(2) { top: 24px; right: 60px; }
+  .mic:nth-child(3) { bottom: 80px; left: 28px; }
+  .mic:nth-child(4) { bottom: 40px; right: 40px; }
+  .mic:nth-child(5) { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+  /* Scan button */
+  .scan-section {
+    max-width: 480px;
+    width: 100%;
+    padding: 40px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .scan-btn {
+    width: 100%;
+    max-width: 280px;
+    padding: 16px 24px;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scan-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .scan-btn:active { transform: translateY(0); }
+
+  .scan-btn.scanning {
+    background: var(--surface);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+  }
+
+  .mic-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 0.5px;
+  }
+
+  .mic-count span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Bottom info */
+  .footer-info {
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 0.5px;
+    padding-bottom: 40px;
+    text-align: center;
+  }
+
+  .footer-info a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">labor<span>.</span></div>
+  <div class="status-pill">0 mics online</div>
+</header>
+
+<div class="hero">
+  <h1 class="pitch">Drop mics everywhere.<br>Hear the whole room.</h1>
+  <p class="sub">Scatter wireless microphones across any space. Labor finds them, links them, and captures spatial audio — no wiring, no mixing board.</p>
+</div>
+
+<div class="room-canvas">
+  <div class="room-outline"></div>
+  <div class="room-label">your room</div>
+
+  <div class="mic" data-id="1">
+    <div class="mic-ring"></div>
+    <div class="mic-icon"></div>
+    <div class="mic-id">M-01</div>
+  </div>
+  <div class="mic" data-id="2">
+    <div class="mic-ring"></div>
+    <div class="mic-icon"></div>
+    <div class="mic-id">M-02</div>
+  </div>
+  <div class="mic" data-id="3">
+    <div class="mic-ring"></div>
+    <div class="mic-icon"></div>
+    <div class="mic-id">M-03</div>
+  </div>
+  <div class="mic" data-id="4">
+    <div class="mic-ring"></div>
+    <div class="mic-icon"></div>
+    <div class="mic-id">M-04</div>
+  </div>
+  <div class="mic" data-id="5">
+    <div class="mic-ring"></div>
+    <div class="mic-icon"></div>
+    <div class="mic-id">M-05</div>
+  </div>
+</div>
+
+<div class="scan-section">
+  <button class="scan-btn" id="scanBtn">Scan for Mics</button>
+  <div class="mic-count" id="micCount"></div>
+</div>
+
+<div class="footer-info">spatial audio capture — <a href="#">labor.com</a></div>
+
+<script>
+  const mics = document.querySelectorAll('.mic');
+  const scanBtn = document.getElementById('scanBtn');
+  const micCount = document.getElementById('micCount');
+  const statusPill = document.querySelector('.status-pill');
+  let scanning = false;
+  let found = 0;
+
+  scanBtn.addEventListener('click', () => {
+    if (scanning) return;
+    scanning = true;
+    found = 0;
+    scanBtn.textContent = 'Scanning…';
+    scanBtn.classList.add('scanning');
+
+    // Reset all mics
+    mics.forEach(m => m.classList.remove('active'));
+    statusPill.textContent = 'scanning…';
+
+    // Discover mics one by one with staggered timing
+    const order = [4, 0, 2, 1, 3]; // center first, then corners
+    order.forEach((idx, i) => {
+      setTimeout(() => {
+        mics[idx].classList.add('active');
+        found++;
+        micCount.innerHTML = `<span>${found}</span> / 5 mics discovered`;
+        statusPill.textContent = `${found} mics online`;
+
+        if (found === 5) {
+          setTimeout(() => {
+            scanBtn.textContent = 'All Mics Linked';
+            scanning = false;
+          }, 400);
+        }
+      }, 600 + i * 700);
+    });
+  });
+
+  // Individual mic toggle on tap
+  mics.forEach(mic => {
+    mic.addEventListener('click', (e) => {
+      if (scanning) return;
+      mic.classList.toggle('active');
+      const active = document.querySelectorAll('.mic.active').length;
+      statusPill.textContent = active ? `${active} mics online` : '0 mics online';
+      if (active) {
+        micCount.innerHTML = `<span>${active}</span> / 5 mics active`;
+      } else {
+        micCount.innerHTML = '';
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
